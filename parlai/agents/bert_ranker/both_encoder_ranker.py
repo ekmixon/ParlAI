@@ -113,14 +113,16 @@ class BothEncoderRankerAgent(TorchAgent):
         if output_biencoder is None:
             return None
         new_candidate_vecs = [
-            self.biencoder.vectorize_fixed_candidates(cands[0 : self.top_n_bi])
+            self.biencoder.vectorize_fixed_candidates(cands[: self.top_n_bi])
             for cands in output_biencoder.text_candidates
         ]
+
         new_candidates = [
-            [c for c in cands[0 : self.top_n_bi]]
+            list(cands[: self.top_n_bi])
             for cands in output_biencoder.text_candidates
             if cands is not None
         ]
+
         copy_batch = Batch(
             text_vec=batch.text_vec,
             candidate_vecs=new_candidate_vecs,

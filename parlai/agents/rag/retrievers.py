@@ -264,16 +264,15 @@ class RagRetrieverTokenizer:
         :param dictionary:
             ParlAI dictionary agent
         """
-        if self.query_model in ['bert', 'bert_from_parlai_rag']:
-            try:
-                return BertTokenizer.from_pretrained('bert-base-uncased')
-            except (ImportError, OSError):
-                vocab_path = PathManager.get_local_path(
-                    os.path.join(self.datapath, "bert_base_uncased", self.VOCAB_PATH)
-                )
-                return transformers.BertTokenizer.from_pretrained(vocab_path)
-        else:
+        if self.query_model not in ['bert', 'bert_from_parlai_rag']:
             return dictionary
+        try:
+            return BertTokenizer.from_pretrained('bert-base-uncased')
+        except (ImportError, OSError):
+            vocab_path = PathManager.get_local_path(
+                os.path.join(self.datapath, "bert_base_uncased", self.VOCAB_PATH)
+            )
+            return transformers.BertTokenizer.from_pretrained(vocab_path)
 
     def get_pad_idx(self) -> int:
         """
@@ -321,20 +320,19 @@ class RagRetrieverTokenizer:
         :return encoding:
             return encoded text.
         """
-        if self.query_model in ['bert', 'bert_from_parlai_rag']:
-            txt = txt.lower().strip()
-            if txt_pair:
-                txt_pair = txt_pair.lower().strip()
-            return self.tokenizer.encode(
-                txt,
-                text_pair=txt_pair,
-                add_special_tokens=True,
-                max_length=self.max_length,
-                pad_to_max_length=False,
-                truncation='longest_first',
-            )
-        else:
+        if self.query_model not in ['bert', 'bert_from_parlai_rag']:
             return self.tokenizer.txt2vec(txt)
+        txt = txt.lower().strip()
+        if txt_pair:
+            txt_pair = txt_pair.lower().strip()
+        return self.tokenizer.encode(
+            txt,
+            text_pair=txt_pair,
+            add_special_tokens=True,
+            max_length=self.max_length,
+            pad_to_max_length=False,
+            truncation='longest_first',
+        )
 
     def decode(self, vec: torch.LongTensor) -> str:
         """
@@ -612,7 +610,7 @@ class DPRRetriever(RagRetriever):
                 )
             self.indexer.deserialize_from(index_path, embeddings_path)
             self.passages = load_passages_dict(passages_path)
-        elif shared:
+        else:
             self.indexer = shared['indexer']
             self.passages = shared['passages']
 
@@ -718,10 +716,9 @@ class TFIDFRetriever(RagRetriever):
         self.n_docs = opt['n_docs']
         self.max_doc_paragraphs = opt['tfidf_max_doc_paragraphs']
         assert self.max_doc_paragraphs != 0
-        if not shared:
-            self.tfidf_retriever = create_agent(tfidf_opt)
-        else:
-            self.tfidf_retriever = shared['tfidf_retriever']
+        self.tfidf_retriever = (
+            shared['tfidf_retriever'] if shared else create_agent(tfidf_opt)
+        )
 
     def share(self) -> TShared:
         shared = super().share()
@@ -962,10 +959,9 @@ class DPRThenPolyRetriever(DPRThenTorchReranker):
 
         ctxt_rep, ctxt_rep_mask, _ = self.polyencoder(ctxt_tokens=poly_query_vec)
         _, _, cand_rep = self.polyencoder(cand_tokens=doc_vecs)
-        scores = self.polyencoder(
+        return self.polyencoder(
             ctxt_rep=ctxt_rep, ctxt_rep_mask=ctxt_rep_mask, cand_rep=cand_rep
         )
-        return scores
 
 
 class PolyFaissRetriever(DPRThenPolyRetriever):
@@ -1004,10 +1000,7 @@ class RagTfidfRetrieverAgent(TfidfRetrieverAgent):
 
     def __init__(self, opt: Opt, shared: TShared = None):
         super().__init__(opt, shared)
-        if not shared:
-            self.docid_to_text = {}
-        else:
-            self.docid_to_text = shared.get('docid_to_text', {})
+        self.docid_to_text = shared.get('docid_to_text', {}) if shared else {}
 
     def share(self) -> TShared:
         shared = super().share()
@@ -1044,10 +1037,12 @@ class SearchQueryRetriever(RagRetriever):
         else:
             self.chunk_reranker = HeadChunkRanker(n_doc_chunks)
 
-        if not shared:
-            self.query_generator = self.init_search_query_generator(opt)
-        else:
-            self.query_generator = shared['query_generator']
+        self.query_generator = (
+            shared['query_generator']
+            if shared
+            else self.init_search_query_generator(opt)
+        )
+
         self.dict = dictionary
         self.init_query_encoder(opt)
 
@@ -1136,10 +1131,9 @@ class SearchQuerySearchEngineRetriever(SearchQueryRetriever):
 
     def __init__(self, opt: Opt, dictionary: DictionaryAgent, shared: TShared):
         super().__init__(opt, dictionary, shared)
-        if not shared:
-            self.search_client = self.initiate_retriever_api(opt)
-        else:
-            self.search_client = shared['search_client']
+        self.search_client = (
+            shared['search_client'] if shared else self.initiate_retriever_api(opt)
+        )
 
     def share(self) -> TShared:
         shared = super().share()

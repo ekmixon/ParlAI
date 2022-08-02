@@ -36,9 +36,7 @@ class TimesSeenMetric(_CounterMetric):
     """
 
     def value(self) -> int:
-        if not self._counter:
-            return 0
-        return max(self._counter.values())
+        return max(self._counter.values()) if self._counter else 0
 
 
 class UniqueMetric(_CounterMetric):
@@ -47,9 +45,7 @@ class UniqueMetric(_CounterMetric):
     """
 
     def value(self) -> int:
-        if not self._counter:
-            return 0
-        return len(self._counter)
+        return len(self._counter) if self._counter else 0
 
 
 class FakeList(list):
@@ -94,10 +90,7 @@ class CounterAgent(TorchAgent):
         Pull out a singleton value if provided a list.
         """
         # necessary for labels
-        if isinstance(val, (tuple, list)):
-            return val[0]
-        else:
-            return val
+        return val[0] if isinstance(val, (tuple, list)) else val
 
     def build_model(self):
         return None
@@ -127,8 +120,7 @@ class CounterAgent(TorchAgent):
         self._counter.clear()
 
     def report(self):
-        report = {}
-        report['num_pad'] = SumMetric(self._padding_counter.get('val', 0))
+        report = {'num_pad': SumMetric(self._padding_counter.get('val', 0))}
         report['unique'] = UniqueMetric(self._counter)
         report['times_seen'] = TimesSeenMetric(self._counter)
         return report

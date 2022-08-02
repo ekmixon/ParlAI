@@ -30,7 +30,7 @@ from parlai.core.torch_generator_agent import TorchGeneratorAgent, TorchGenerato
 
 
 def build_t5(opt: Opt) -> T5ForConditionalGeneration:
-    if not HF_VERSION >= 4.3:
+    if HF_VERSION < 4.3:
         raise RuntimeError('Must use transformers package >= 4.3 to use t5')
     return T5ForConditionalGeneration.from_pretrained(
         opt['t5_model_arch'], dropout_rate=opt['t5_dropout']
@@ -165,10 +165,12 @@ class T5Agent(TorchGeneratorAgent):
             'early_stopping': None,
             'num_beams': beam_size,
             'temperature': self.temperature,
-            'top_k': self.opt['topk'] if method in ['topk', 'delayedbeam'] else None,
+            'top_k': self.opt['topk']
+            if method in ['topk', 'delayedbeam']
+            else None,
             'top_p': self.opt['topp'] if method == 'nucleus' else None,
             'repetition_penalty': None,
-            'bad_words_ids': bad_words_ids if bad_words_ids else None,
+            'bad_words_ids': bad_words_ids or None,
             'bos_token_id': self.START_IDX,
             'pad_token_id': self.NULL_IDX,
             'eos_token_id': self.END_IDX,
@@ -179,10 +181,11 @@ class T5Agent(TorchGeneratorAgent):
             'decoder_start_token_id': self.NULL_IDX,
         }
 
+
         if self.opt['t5_generation_config']:
             config = TASK_CONFIGS[self.opt['t5_generation_config']]
             config.pop('prefix', None)
-            generation_params.update(config)
+            generation_params |= config
         if overrides:
             generation_params.update(overrides)
 
@@ -333,8 +336,7 @@ class ParlaiT5Model(TorchGeneratorModel):
         # Rescale output before projecting on vocab
         # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
         tensor = tensor * (self.t5.model_dim ** -0.5)
-        lm_logits = self.t5.lm_head(tensor)
-        return lm_logits
+        return self.t5.lm_head(tensor)
 
 
 ###########################################################################

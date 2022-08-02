@@ -167,13 +167,11 @@ class ContextWithImageEncoder(TransformerEncoder):
         assert positions is not None
         assert segments is not None
 
-        valid_inds = [
+        if valid_inds := [
             i
             for i, img in enumerate(images)
             if img is not None and isinstance(img, torch.Tensor)
-        ]
-
-        if valid_inds:
+        ]:
             image_mask_list = []
             image_encoded_list = []
 
@@ -370,7 +368,7 @@ class ContextWithImageEncoder(TransformerEncoder):
             The result of concatenating all non-null objects in tensors
         """
         non_null_tensors: List[torch.Tensor] = [t for t in tensors if t is not None]
-        return torch.cat([t for t in non_null_tensors], dim=1)
+        return torch.cat(list(non_null_tensors), dim=1)
 
     def _fix_for_fp16(
         self, full_enc: torch.Tensor, full_mask: Optional[torch.Tensor]

@@ -66,7 +66,7 @@ class HuggingFaceDictionaryAgent(DictionaryAgent, ABC):
         pass
 
     @abstractmethod
-    def override_special_tokens(opt):
+    def override_special_tokens(self):
         """
         Override the special tokens for your tokenizer.
         """

@@ -86,10 +86,12 @@ class TransformerMemNetModel(nn.Module):
                 self.context_encoder, self.context_encoder.out_dim
             )
         else:
-            if not self.share_word_embedding:
-                cand_embeddings = self.cand_embeddings
-            else:
-                cand_embeddings = self.embeddings
+            cand_embeddings = (
+                self.embeddings
+                if self.share_word_embedding
+                else self.cand_embeddings
+            )
+
             self.cand_encoder = self.build_candidate_encoder(
                 opt,
                 dictionary,
